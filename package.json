@@ -1,0 +1,36 @@
+{
+  "name": "sales-order-service",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hussien-LTS/sales-order-service.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/Hussien-LTS/sales-order-service/issues"
+  },
+  "homepage": "https://github.com/Hussien-LTS/sales-order-service#readme",
+  "dependencies": {
+    "@prisma/client": "^6.19.1",
+    "@types/cors": "^2.8.19",
+    "axios": "^1.13.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.0.6",
+    "prisma": "^6.19.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
