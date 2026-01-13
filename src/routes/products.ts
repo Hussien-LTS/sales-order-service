@@ -6,8 +6,8 @@ import {
   getPaginationParams,
   getPagingData,
   PaginationResponse,
-} from "src/utils/pagination.js";
-import { uploadImage } from "src/utils/upload.js";
+} from "../utils/pagination.js";
+import { uploadImage } from "../utils/upload.js";
 
 const router: Router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });

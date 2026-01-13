@@ -3,15 +3,9 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "target": "ES2023",
-    "strict": true,
+    "strict": false,
     "outDir": "./dist",
     "rootDir": ".",
-    "baseUrl": ".",
-    "paths": {
-      "@utils/*": ["utils/*"],
-      "@routes/*": ["routes/*"],
-      "@services/*": ["services/*"]
-    },
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true
   },
