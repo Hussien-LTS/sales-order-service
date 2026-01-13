@@ -12,6 +12,7 @@ datasource db {
 model Product {
   id          Int      @id @default(autoincrement())
   name        String
+  imageUrl    String?
   description String?
   sku         String   @unique
   price       Decimal

@@ -5,9 +5,11 @@ import {
   getPagingData,
   PaginationResponse,
 } from "../utils/pagination.js";
+import multer from "multer";
+import { uploadImage } from "../utils/upload";
 
 const router: Router = express.Router();
-
+const upload = multer({ storage: multer.memoryStorage() });
 // Middleware for internal APIs (check 'X-Internal-Key' header)
 const internalOnly = (
   req: express.Request,
@@ -88,12 +90,16 @@ router.get("/:id", async (req, res) => {
 });
 
 // External: POST /products (create)
-router.post("/", express.json(), async (req, res) => {
+router.post("/", upload.single("image"), async (req, res) => {
   try {
+    const imageUrl = req.file
+      ? await uploadImage(req.file.buffer, "products")
+      : null;
     const { name, description, sku, price, stockQty, status } = req.body;
     const product = await prisma.product.create({
       data: {
         name,
+        imageUrl,
         description,
         sku,
         price: parseFloat(price),
@@ -103,7 +109,12 @@ router.post("/", express.json(), async (req, res) => {
     });
     res.status(201).json({ success: true, data: product });
   } catch (error) {
-    res.status(500).json({ success: false, error: "Failed to create product" });
+    console.error("Error creating product:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to create product",
+      message: error,
+    });
   }
 });
 
