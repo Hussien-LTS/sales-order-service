@@ -1,10 +1,12 @@
 {
   "compilerOptions": {
-    "module": "CommonJS",
-    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "target": "ES2023",
+    "strict": true,
     "outDir": "./dist",
-    "rootDir": "./src",
-    "baseUrl": "./src",
+    "rootDir": ".",
+    "baseUrl": ".",
     "paths": {
       "@utils/*": ["utils/*"],
       "@routes/*": ["routes/*"],
@@ -13,5 +15,6 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true
   },
-  "include": ["src/**/*"]
+
+  "include": ["src/**/*", "index.ts"]
 }

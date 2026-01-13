@@ -1,12 +1,13 @@
 import express, { Request, Response, Router } from "express";
 import prisma from "../lib/prisma.js";
+
+import multer from "multer";
 import {
   getPaginationParams,
   getPagingData,
   PaginationResponse,
-} from "@utils/pagination.js";
-import multer from "multer";
-import { uploadImage } from "@utils/upload";
+} from "src/utils/pagination.js";
+import { uploadImage } from "src/utils/upload.js";
 
 const router: Router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
