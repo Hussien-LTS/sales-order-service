@@ -4,9 +4,9 @@ import {
   getPaginationParams,
   getPagingData,
   PaginationResponse,
-} from "../utils/pagination.js";
+} from "@utils/pagination.js";
 import multer from "multer";
-import { uploadImage } from "../utils/upload";
+import { uploadImage } from "@utils/upload";
 
 const router: Router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
