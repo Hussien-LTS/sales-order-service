@@ -1,7 +1,12 @@
-import express from "express";
+import express, { Request, Response, Router } from "express";
 import prisma from "../lib/prisma.js";
+import {
+  getPaginationParams,
+  getPagingData,
+  PaginationResponse,
+} from "../utils/pagination.js";
 
-const router = express.Router();
+const router: Router = express.Router();
 
 // Middleware for internal APIs (check 'X-Internal-Key' header)
 const internalOnly = (
@@ -14,14 +19,43 @@ const internalOnly = (
   }
   next();
 };
+interface PaginatedProductsResponse extends PaginationResponse<any> {}
 
-// External: GET /products (list all)
-router.get("/", async (req, res) => {
+// External: GET /products (paginated)
+
+router.get("/", async (req: Request, res: Response) => {
   try {
-    const products = await prisma.product.findMany();
-    res.status(200).json(products);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch products" });
+    const { page, limit, skip } = getPaginationParams(
+      req.query.page as string | string[] | undefined,
+      req.query.limit as string | string[] | undefined
+    );
+
+    // Get total count
+    const total = await prisma.product.count();
+
+    // Get paginated products
+    const products = await prisma.product.findMany({
+      skip,
+      take: limit,
+      orderBy: { createdAt: "asc" },
+    });
+
+    const response: PaginatedProductsResponse = getPagingData(
+      { count: total, rows: products },
+      page,
+      limit
+    );
+
+    res.json({
+      success: true,
+      data: response,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
   }
 });
 
@@ -42,13 +76,14 @@ router.get("/:id", async (req, res) => {
     });
 
     if (!product) {
-      return res.status(404).json({ error: "Product not found" });
+      return res
+        .status(404)
+        .json({ success: false, error: "Product not found" });
     }
 
-    console.log("Product fetched successfully");
-    res.status(200).json(product);
+    res.status(200).json({ success: true, data: product });
   } catch (error) {
-    res.status(500).json({ error: "Failed to fetch product" });
+    res.status(500).json({ success: false, error: "Failed to fetch product" });
   }
 });
 
@@ -66,9 +101,9 @@ router.post("/", express.json(), async (req, res) => {
         status,
       },
     });
-    res.status(201).json(product);
+    res.status(201).json({ success: true, data: product });
   } catch (error) {
-    res.status(500).json({ error: "Failed to create product" });
+    res.status(500).json({ success: false, error: "Failed to create product" });
   }
 });
 
@@ -87,9 +122,9 @@ router.put("/:id", internalOnly, express.json(), async (req, res) => {
         status,
       },
     });
-    res.json(product);
+    res.json({ success: true, data: product });
   } catch {
-    res.status(404).json({ error: "Product not found" });
+    res.status(404).json({ success: false, error: "Product not found" });
   }
 });
 
@@ -100,11 +135,12 @@ router.delete("/:id", internalOnly, async (req, res) => {
       where: { id: parseInt(req.params.id as string, 10) },
     });
     res.status(200).json({
+      success: true,
       message: "Product deleted successfully",
       productId: parseInt(req.params.id as string, 10),
     });
   } catch {
-    res.status(404).json({ error: "Product not found" });
+    res.status(404).json({ success: false, error: "Product not found" });
   }
 });
 

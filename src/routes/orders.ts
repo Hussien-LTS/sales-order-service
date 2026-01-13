@@ -1,12 +1,13 @@
-import express from "express";
+import express, { Router, Request, Response } from "express";
 import prisma from "../lib/prisma.js";
 import axios from "axios";
+import { getPaginationParams, getPagingData } from "../utils/pagination.js";
 
-const router = express.Router();
-const THIRD_PARTY_URL = "https://third-party-api.com/salesOrder";
-const AUTH_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"; // Use env in production
+const router: Router = express.Router();
+const THIRD_PARTY_URL = process.env.THIRD_PARTY_URL as string;
+const AUTH_TOKEN = process.env.AUTH_TOKEN;
 
-router.post("/", express.json(), async (req, res) => {
+router.post("/", express.json(), async (req: Request, res: Response) => {
   try {
     const { customerName, email, mobileNumber, status, orderDate, orderItems } =
       req.body;
@@ -84,35 +85,40 @@ router.post("/", express.json(), async (req, res) => {
 
 // Separate function for third-party push
 async function pushToThirdParty(order: any) {
-  const payload = {
-    salesOrder: {
-      id: order.id,
-      orderNumber: order.orderNumber,
-      customerName: order.customerName,
-      email: order.email,
-      mobileNumber: order.mobileNumber,
-      status: order.status,
-      orderDate: order.orderDate,
-      totalAmount: order.totalAmount,
-    },
-    products: order.orderItems.map((oi: any) => ({
-      productId: oi.productId,
-      productName: oi.product.name,
-      quantity: oi.quantity,
-      price: oi.price,
-    })),
-  };
+  try {
+    const payload = {
+      salesOrder: {
+        id: order.id,
+        orderNumber: order.orderNumber,
+        customerName: order.customerName,
+        email: order.email,
+        mobileNumber: order.mobileNumber,
+        status: order.status,
+        orderDate: order.orderDate,
+        totalAmount: order.totalAmount,
+      },
+      products: order.orderItems.map((oi: any) => ({
+        productId: oi.productId,
+        productName: oi.product.name,
+        quantity: oi.quantity,
+        price: oi.price,
+      })),
+    };
 
-  await axios.post(THIRD_PARTY_URL, payload, {
-    headers: {
-      Authorization: AUTH_TOKEN,
-      "Content-Type": "application/json",
-    },
-  });
+    await axios.post(THIRD_PARTY_URL, payload, {
+      headers: {
+        Authorization: AUTH_TOKEN,
+        "Content-Type": "application/json",
+      },
+    });
+    console.log(`Order ${order.id} pushed to third-party successfully`);
+  } catch (error) {
+    console.error(`Failed to push order ${order.id} to third-party:`, error);
+  }
 }
 
 // GET /orders with filters
-router.get("/", async (req, res) => {
+router.get("/", async (req: Request, res: Response) => {
   try {
     const { name, email, mobileNumber, status, orderDateFrom, orderDateTo } =
       req.query;
@@ -130,14 +136,41 @@ router.get("/", async (req, res) => {
       if (orderDateTo) where.orderDate.lte = new Date(orderDateTo as string);
     }
 
+    // Pagination
+    const { page, limit, skip } = getPaginationParams(
+      req.query.page as string | string[] | undefined,
+      req.query.limit as string | string[] | undefined
+    );
+
+    // Get TOTAL COUNT with same filters
+    const total = await prisma.salesOrder.count({ where });
+
+    // Get PAGINATED orders with same filters
     const orders = await prisma.salesOrder.findMany({
       where,
-      include: { orderItems: { include: { product: true } } },
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      include: {
+        orderItems: {
+          include: { product: true },
+        },
+      },
     });
-    res.status(200).json(orders);
-  } catch (error) {
+
+    // Format response
+    const response = getPagingData({ count: total, rows: orders }, page, limit);
+
+    res.status(200).json({
+      success: true,
+      data: response,
+    });
+  } catch (error: any) {
     console.error("Failed to fetch orders:", error);
-    res.status(500).json({ error: "Failed to fetch orders" });
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch orders",
+    });
   }
 });
 
@@ -153,11 +186,12 @@ router.get("/:id", async (req, res) => {
       where: { id },
       include: { orderItems: { include: { product: true } } },
     });
-    if (!order) return res.status(404).json({ error: "Order not found" });
-    res.status(200).json(order);
+    if (!order)
+      return res.status(404).json({ success: false, error: "Order not found" });
+    res.status(200).json({ success: true, data: order });
   } catch (error) {
     console.error("Failed to fetch order:", error);
-    res.status(500).json({ error: "Failed to fetch order" });
+    res.status(500).json({ success: false, error: "Failed to fetch order" });
   }
 });
 
@@ -192,10 +226,10 @@ router.put("/:id", express.json(), async (req, res) => {
       include: { orderItems: { include: { product: true } } },
     });
 
-    res.status(200).json(updatedOrder);
+    res.status(200).json({ success: true, data: updatedOrder });
   } catch (error) {
     console.error("Failed to update order:", error);
-    res.status(500).json({ error: "Failed to update order" });
+    res.status(500).json({ success: false, error: "Failed to update order" });
   }
 });
 
@@ -216,9 +250,11 @@ router.patch("/:id/status", express.json(), async (req, res) => {
     ];
 
     if (!validStatuses.includes(status)) {
-      return res
-        .status(400)
-        .json({ error: "Invalid status", allowed: validStatuses });
+      return res.status(400).json({
+        success: false,
+        error: "Invalid status",
+        allowed: validStatuses,
+      });
     }
 
     const order = await prisma.salesOrder.findUnique({
@@ -233,6 +269,7 @@ router.patch("/:id/status", express.json(), async (req, res) => {
     // BLOCK 1: DELIVERED = FINAL STATE
     if (order.status === "delivered") {
       return res.status(400).json({
+        success: false,
         error: "Delivered orders cannot be modified",
         currentStatus: "delivered",
         message: "Order is complete and cannot change status",
@@ -257,6 +294,7 @@ router.patch("/:id/status", express.json(), async (req, res) => {
       (order.status === "cancelled" && status !== "cancelled")
     ) {
       return res.status(400).json({
+        success: false,
         error: "Invalid status transition",
         current: order.status,
         requested: status,
@@ -287,6 +325,7 @@ router.patch("/:id/status", express.json(), async (req, res) => {
     });
 
     res.status(200).json({
+      success: true,
       message: `Status updated to "${status}" successfully`,
       order: await prisma.salesOrder.findUnique({
         where: { id },
@@ -295,7 +334,7 @@ router.patch("/:id/status", express.json(), async (req, res) => {
     });
   } catch (error) {
     console.error("Status update failed:", error);
-    res.status(500).json({ error: "Status update failed" });
+    res.status(500).json({ success: false, error: "Status update failed" });
   }
 });
 
